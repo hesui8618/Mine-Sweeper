@@ -170,6 +170,15 @@
             display: block;
         }
         
+        /* 修复弹性布局的语言内容 */
+        .lang-content.flex {
+            display: none;
+        }
+        
+        .lang-content.flex.active {
+            display: flex;
+        }
+        
         /* 优化移动端间距 */
         @media (max-width: 640px) {
             h1 {
@@ -228,6 +237,7 @@
                 -webkit-overflow-scrolling: touch;
             }
             
+            /* 在移动端显示缩放控制 */
             .game-zoom-controls {
                 display: flex !important;
             }
@@ -324,7 +334,7 @@
                 </div>
                 
                 <!-- 移动端游戏缩放控制 -->
-                <div class="game-zoom-controls mt-2 hidden md:hidden">
+                <div class="game-zoom-controls mt-2 hidden">
                     <!-- 英文 -->
                     <div class="lang-content en active flex justify-center">
                         <button class="px-3 py-1 text-sm bg-gray-200 rounded mr-2 zoom-out">-</button>
@@ -697,6 +707,11 @@
                 // Show elements for the selected language
                 document.querySelectorAll(`.lang-content.${lang}`).forEach(el => {
                     el.classList.add('active');
+                    
+                    // 确保灵活布局保持一致
+                    if (el.classList.contains('flex')) {
+                        el.style.display = 'flex';
+                    }
                 });
                 
                 // 存储语言选择，以便下次访问时保持
@@ -705,6 +720,36 @@
             
             // 初始化语言切换功能
             initLanguageSwitcher();
+            
+            // 检查语言元素激活状态
+            function checkLanguageActivation() {
+                const lang = document.documentElement.lang || 'en';
+                console.log('Current language:', lang);
+                
+                const allLangContent = document.querySelectorAll('.lang-content');
+                console.log('Total language elements:', allLangContent.length);
+                
+                const activeLangContent = document.querySelectorAll(`.lang-content.active`);
+                console.log('Active language elements:', activeLangContent.length);
+                
+                const wrongActiveLangContent = document.querySelectorAll(`.lang-content.active:not(.${lang})`);
+                console.log('Incorrect active elements:', wrongActiveLangContent.length);
+                
+                if (wrongActiveLangContent.length > 0) {
+                    console.warn('Found incorrect language elements activated:', 
+                        Array.from(wrongActiveLangContent).map(el => el.textContent.trim().substring(0, 20)));
+                }
+            }
+            
+            // 在语言切换后检查
+            document.querySelectorAll('.lang-button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setTimeout(checkLanguageActivation, 100);
+                });
+            });
+            
+            // 页面加载完成后检查
+            setTimeout(checkLanguageActivation, 1000);
             
             // 初始化移动端控制
             initMobileControls();
@@ -718,9 +763,12 @@
             const gameFrame = document.querySelector('.game-frame iframe');
             const revealButtons = document.querySelectorAll('.reveal-btn');
             const flagButtons = document.querySelectorAll('.flag-btn');
-            const zoomOutBtn = document.querySelector('.zoom-out');
-            const zoomInBtn = document.querySelector('.zoom-in');
-            const zoomResetBtn = document.querySelector('.zoom-reset');
+            
+            // 缩放控制
+            const zoomControls = document.querySelector('.game-zoom-controls');
+            const zoomOutBtns = document.querySelectorAll('.zoom-out');
+            const zoomInBtns = document.querySelectorAll('.zoom-in');
+            const zoomResetBtns = document.querySelectorAll('.zoom-reset');
             
             // 当前操作模式 (reveal 或 flag)
             let currentMode = 'reveal';
@@ -769,26 +817,30 @@
                 });
             });
             
-            // 缩小
-            zoomOutBtn?.addEventListener('click', () => {
-                if (window.currentScale > 0.5) {
-                    window.currentScale -= 0.1;
-                    updateScale();
-                }
+            // 为缩放按钮添加事件监听
+            zoomOutBtns.forEach(btn => {
+                btn?.addEventListener('click', () => {
+                    if (window.currentScale > 0.5) {
+                        window.currentScale -= 0.1;
+                        updateScale();
+                    }
+                });
             });
             
-            // 放大
-            zoomInBtn?.addEventListener('click', () => {
-                if (window.currentScale < 2) {
-                    window.currentScale += 0.1;
-                    updateScale();
-                }
+            zoomInBtns.forEach(btn => {
+                btn?.addEventListener('click', () => {
+                    if (window.currentScale < 2) {
+                        window.currentScale += 0.1;
+                        updateScale();
+                    }
+                });
             });
             
-            // 重置
-            zoomResetBtn?.addEventListener('click', () => {
-                window.currentScale = 1;
-                updateScale();
+            zoomResetBtns.forEach(btn => {
+                btn?.addEventListener('click', () => {
+                    window.currentScale = 1;
+                    updateScale();
+                });
             });
             
             // 默认激活翻开模式
@@ -815,12 +867,6 @@
                 document.querySelectorAll('button, a').forEach(el => {
                     el.style.touchAction = 'manipulation';
                 });
-                
-                // 显示缩放控制按钮
-                const zoomControls = document.querySelector('.game-zoom-controls');
-                if (zoomControls) {
-                    zoomControls.style.display = 'flex';
-                }
             }
         }
         
