@@ -220,6 +220,23 @@
             .mobile-ctrl-btn:active {
                 transform: scale(0.95);
             }
+            
+            /* 移动端游戏框架调整 */
+            .game-frame {
+                aspect-ratio: auto !important;
+                height: 400px;
+                overflow: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .game-zoom-controls {
+                display: flex !important;
+            }
+            
+            .game-frame iframe {
+                transform-origin: 0 0;
+                transition: transform 0.2s ease;
+            }
         }
     </style>
 </head>
@@ -304,6 +321,28 @@
                     <div class="lang-content ja">
                         <button class="mobile-ctrl-btn reveal-btn">開く</button>
                         <button class="mobile-ctrl-btn flag-btn">印</button>
+                    </div>
+                </div>
+                
+                <!-- 移动端游戏缩放控制 -->
+                <div class="game-zoom-controls mt-2 hidden md:hidden">
+                    <!-- 英文 -->
+                    <div class="lang-content en active flex justify-center">
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded mr-2 zoom-out">-</button>
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded mr-2 zoom-reset">Reset</button>
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded zoom-in">+</button>
+                    </div>
+                    <!-- 中文 -->
+                    <div class="lang-content zh flex justify-center">
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded mr-2 zoom-out">-</button>
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded mr-2 zoom-reset">重置</button>
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded zoom-in">+</button>
+                    </div>
+                    <!-- 日文 -->
+                    <div class="lang-content ja flex justify-center">
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded mr-2 zoom-out">-</button>
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded mr-2 zoom-reset">リセット</button>
+                        <button class="px-3 py-1 text-sm bg-gray-200 rounded zoom-in">+</button>
                     </div>
                 </div>
             </div>
@@ -692,12 +731,91 @@
                 }
             }
         }, { passive: false });
+        
+        // 移动端触摸手势控制
+        document.addEventListener('DOMContentLoaded', function() {
+            const gameFrame = document.querySelector('.game-frame');
+            let startX, startY, initialPinchDistance;
+            let lastScale = 1;
+            let isDragging = false;
+            
+            // 触摸开始
+            gameFrame?.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 2) {
+                    // 捏合手势开始
+                    e.preventDefault();
+                    
+                    // 计算两个触摸点之间的距离
+                    const dist = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+                    initialPinchDistance = dist;
+                    lastScale = window.currentScale || 1;
+                } else if (e.touches.length === 1) {
+                    // 单指拖动开始
+                    startX = e.touches[0].pageX;
+                    startY = e.touches[0].pageY;
+                    isDragging = true;
+                }
+            }, { passive: false });
+            
+            // 触摸移动
+            gameFrame?.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 2) {
+                    // 捏合手势移动（缩放）
+                    e.preventDefault();
+                    
+                    // 计算当前两个触摸点之间的距离
+                    const dist = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+                    
+                    // 计算缩放比例变化
+                    let newScale = lastScale * (dist / initialPinchDistance);
+                    
+                    // 限制缩放范围
+                    newScale = Math.min(Math.max(0.5, newScale), 2);
+                    
+                    // 应用缩放
+                    if (window.currentScale !== undefined) {
+                        window.currentScale = newScale;
+                        updateScale();
+                    }
+                } else if (e.touches.length === 1 && isDragging) {
+                    // 单指拖动（滚动）
+                    const x = e.touches[0].pageX;
+                    const y = e.touches[0].pageY;
+                    
+                    // 计算拖动距离
+                    const deltaX = x - startX;
+                    const deltaY = y - startY;
+                    
+                    // 应用滚动
+                    gameFrame.scrollLeft -= deltaX;
+                    gameFrame.scrollTop -= deltaY;
+                    
+                    // 更新起始位置
+                    startX = x;
+                    startY = y;
+                }
+            }, { passive: false });
+            
+            // 触摸结束
+            gameFrame?.addEventListener('touchend', function() {
+                isDragging = false;
+            });
+        });
     </script>
     
     <!-- 页面加载优化 -->
     <script>
         // 页面加载性能追踪
         const pageLoadStart = Date.now();
+        
+        // 全局缩放比例
+        window.currentScale = 1;
         
         // 延迟加载iframe
         function loadGameIframe() {
@@ -720,8 +838,52 @@
             };
         }
         
+        // 更新缩放
+        function updateScale() {
+            const iframe = document.getElementById('game-iframe');
+            iframe.style.transform = `scale(${window.currentScale})`;
+            // 更新iframe容器高度，确保可以滚动查看所有内容
+            const gameFrame = document.querySelector('.game-frame');
+            if (gameFrame && iframe) {
+                const height = iframe.offsetHeight * window.currentScale;
+                if (height > 400) {
+                    gameFrame.style.height = '400px';
+                } else {
+                    gameFrame.style.height = `${height}px`;
+                }
+            }
+        }
+        
         // DOM加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
+            // 移动端游戏缩放控制
+            const iframe = document.getElementById('game-iframe');
+            const zoomOutBtn = document.querySelector('.zoom-out');
+            const zoomInBtn = document.querySelector('.zoom-in');
+            const zoomResetBtn = document.querySelector('.zoom-reset');
+            
+            // 缩小
+            zoomOutBtn?.addEventListener('click', () => {
+                if (window.currentScale > 0.5) {
+                    window.currentScale -= 0.1;
+                    updateScale();
+                }
+            });
+            
+            // 放大
+            zoomInBtn?.addEventListener('click', () => {
+                if (window.currentScale < 2) {
+                    window.currentScale += 0.1;
+                    updateScale();
+                }
+            });
+            
+            // 重置
+            zoomResetBtn?.addEventListener('click', () => {
+                window.currentScale = 1;
+                updateScale();
+            });
+            
             // 检测连接速度
             setTimeout(() => {
                 // 如果2秒后页面仍在加载，则显示慢速连接提示
